@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Number Pad Speed Trainer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    /* Dark Mode & Modern iPhone-inspired UI */
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+                   Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    #exerciseContainer {
+      background: #1e1e1e;
+      border-radius: 12px;
+      padding: 30px 40px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+    }
+    h1 {
+      margin-bottom: 10px;
+      font-size: 2em;
+      font-weight: 500;
+    }
+    p {
+      font-size: 0.95em;
+      margin-bottom: 20px;
+      color: #aaa;
+    }
+    /* Digit Container: fixed width equals the sum of digit boxes */
+    #digitContainer {
+      width: 180px; /* 80px + 60px + 40px */
+      overflow: hidden;
+      margin: 20px auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    /* Digit Row: flex container for sliding */
+    #digitRow {
+      display: flex;
+      align-items: center;
+      transition: transform 0.15s ease;
+    }
+    /* Digit Boxes with fixed widths and styling */
+    .digit {
+      text-align: center;
+      line-height: 1.2em;
+      user-select: none;
+    }
+    .current {
+      width: 80px;
+      font-size: 3.5em;
+      font-weight: bold;
+    }
+    .next {
+      width: 60px;
+      font-size: 2.5em;
+      opacity: 0.8;
+    }
+    .next2 {
+      width: 40px;
+      font-size: 2em;
+      opacity: 0.6;
+    }
+    #stats {
+      margin: 20px 0;
+      font-size: 1.3em;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #clock {
+      font-family: 'Courier New', Courier, monospace;
+    }
+    #averageSpeed {
+      font-size: 0.9em;
+      color: #ccc;
+    }
+    #message {
+      margin: 15px 0;
+      font-size: 1em;
+      min-height: 1.5em;
+    }
+    button {
+      border: none;
+      background-color: #007aff;
+      color: #fff;
+      padding: 10px 20px;
+      font-size: 1em;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    button:hover {
+      background-color: #005bb5;
+    }
+  </style>
+</head>
+<body>
+  <div id="exerciseContainer">
+    <h1>Number Pad Trainer</h1>
+    <p>Press the correct numbers as fast as you can. The session starts on your first key press.</p>
+    
+    <!-- Digit container with a sliding row -->
+    <div id="digitContainer">
+      <div id="digitRow">
+        <div id="box0" class="digit current">–</div>
+        <div id="box1" class="digit next"></div>
+        <div id="box2" class="digit next2"></div>
+      </div>
+    </div>
+    
+    <div id="stats">
+      <div id="clock">00:00.00</div>
+      <div id="averageSpeed">Avg per number: 0.00s</div>
+    </div>
+    <div id="message"></div>
+    <button id="restartBtn" style="display:none;">Restart</button>
+  </div>
+
+  <script>
+    const digitRow = document.getElementById("digitRow");
+    const box0 = document.getElementById("box0");
+    const box1 = document.getElementById("box1");
+    const box2 = document.getElementById("box2");
+    const clockDisplay = document.getElementById("clock");
+    const averageDisplay = document.getElementById("averageSpeed");
+    const messageDisplay = document.getElementById("message");
+    const restartBtn = document.getElementById("restartBtn");
+
+    let sequence = "";
+    let currentIndex = 0;
+    let started = false;
+    let startTime, timerInterval;
+
+    // Generate a random digit sequence (default length is 15 digits)
+    function generateSequence(length = 15) {
+      let seq = "";
+      for (let i = 0; i < length; i++) {
+        seq += Math.floor(Math.random() * 10);
+      }
+      return seq;
+    }
+
+    // Set up the digit boxes with the current three digits
+    function updateDigitBoxes() {
+      box0.textContent = sequence[currentIndex] || "–";
+      box1.textContent = sequence[currentIndex + 1] || "";
+      box2.textContent = sequence[currentIndex + 2] || "";
+    }
+
+    // Format time as mm:ss.xx
+    function formatTime(ms) {
+      const totalSeconds = ms / 1000;
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return (
+        String(minutes).padStart(2, "0") +
+        ":" +
+        seconds.toFixed(2).padStart(5, "0")
+      );
+    }
+
+    // Update the clock and average speed display
+    function updateDisplays() {
+      const elapsedMs = Date.now() - startTime;
+      clockDisplay.textContent = formatTime(elapsedMs);
+      if (currentIndex > 0) {
+        const avg = (elapsedMs / 1000 / currentIndex).toFixed(2);
+        averageDisplay.textContent = `Avg per number: ${avg}s`;
+      }
+    }
+
+    // Initialize or reset the exercise
+    function startExercise() {
+      sequence = generateSequence();
+      currentIndex = 0;
+      messageDisplay.textContent = "";
+      clockDisplay.textContent = "00:00.00";
+      averageDisplay.textContent = "Avg per number: 0.00s";
+      restartBtn.style.display = "none";
+      started = false;
+      digitRow.style.transform = "translateX(0)";
+      updateDigitBoxes();
+      clearInterval(timerInterval);
+    }
+
+    // Start timer on first key press
+    function beginTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(updateDisplays, 10);
+    }
+
+    // Animate sliding: slide the digit row left by the width of box0 (80px)
+    function slideDigits() {
+      // Slide the row left by 80px (the width of the current digit box)
+      digitRow.style.transition = "transform 0.15s ease";
+      digitRow.style.transform = "translateX(-80px)";
+      digitRow.addEventListener("transitionend", onTransitionEnd, { once: true });
+    }
+
+    // After slide transition, update the digit boxes and reset position
+    function onTransitionEnd() {
+      digitRow.style.transition = "none";
+      digitRow.style.transform = "translateX(0)";
+      currentIndex++;
+      updateDigitBoxes();
+    }
+
+    // Check user input against the current digit
+    function handleInput(key) {
+      if (!started) {
+        started = true;
+        beginTimer();
+        updateDigitBoxes();
+        return;
+      }
+      
+      if (!/^\d$/.test(key)) return;
+      
+      if (key === sequence[currentIndex]) {
+        if (currentIndex < sequence.length - 1) {
+          slideDigits();
+          messageDisplay.textContent = "";
+        } else {
+          clearInterval(timerInterval);
+          messageDisplay.textContent = `Awesome! You finished in ${clockDisplay.textContent}.`;
+          restartBtn.style.display = "inline-block";
+        }
+      } else {
+        messageDisplay.textContent = "Incorrect! Try again.";
+      }
+    }
+
+    // Listen for key presses
+    window.addEventListener("keydown", function(e) {
+      if (e.key >= "0" && e.key <= "9") {
+        handleInput(e.key);
+      }
+    });
+
+    restartBtn.addEventListener("click", startExercise);
+
+    startExercise();
+  </script>
+</body>
+</html>
